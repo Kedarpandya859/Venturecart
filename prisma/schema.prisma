@@ -1,0 +1,106 @@
+// VentureKart data model
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Note: enum-like fields (role, kycStatus, status) are stored as String
+// because the SQLite provider does not support Prisma enums.
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         String   @default("INVESTOR") // Role enum as string for SQLite portability
+  kycStatus    String   @default("NONE")     // KycStatus
+  city         String?
+  createdAt    DateTime @default(now())
+
+  // investor side
+  walletBalance Int      @default(0) // paise-free: stored in whole rupees for the demo
+  investments   Investment[]
+  transactions  WalletTxn[]
+  tickets       Ticket[]
+
+  // founder side
+  startups Startup[]
+}
+
+model Startup {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  sector      String
+  tone        String   @default("navy")
+  blurb       String
+  city        String
+  founded     Int
+  askRupees   Int      // ask amount in rupees
+  valuationRupees Int
+  equityPct   Float
+  minTicket   Int      @default(500)
+  raisedRupees Int     @default(0)
+  status      String   @default("LIVE") // RoundStatus
+  closesAt    DateTime?
+  createdAt   DateTime @default(now())
+
+  founderId   String?
+  founder     User?    @relation(fields: [founderId], references: [id])
+  investments Investment[]
+  reports     Report[]
+}
+
+model Investment {
+  id          String   @id @default(cuid())
+  amountRupees Int
+  feeRupees   Int
+  equityPct   Float
+  status      String   @default("PENDING") // BidStatus
+  method      String   @default("WALLET")
+  createdAt   DateTime @default(now())
+
+  investorId  String
+  investor    User     @relation(fields: [investorId], references: [id])
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id])
+}
+
+model WalletTxn {
+  id          String   @id @default(cuid())
+  type        String   // CREDIT | DEBIT
+  amountRupees Int
+  description String
+  status      String   @default("DONE") // DONE | PENDING
+  createdAt   DateTime @default(now())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  title       String
+  dueDate     String
+  uploaded    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id])
+}
+
+model Ticket {
+  id          String   @id @default(cuid())
+  subject     String
+  status      String   @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED
+  assignee    String?
+  createdAt   DateTime @default(now())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
